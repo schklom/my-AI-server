@@ -95,6 +95,30 @@ services:
 
   # https://github.com/mendableai/firecrawl/
 
+  # https://github.com/dzhng/deep-research
+  deep-research:
+    image: mydeepresearch
+    build:
+      context: https://github.com/dzhng/deep-research#main
+    container_name: deep-research
+    <<: [ *restart_failure, *logging, *security ]
+    environment:
+      # FIRECRAWL_KEY: "YOUR_KEY"
+      # If you want to use your self-hosted Firecrawl, add the following below:
+      FIRECRAWL_BASE_URL: "http://localhost:3002"
+      FIRECRAWL_CONCURRENCY: "2"
+      
+      # OPENAI_KEY: "YOUR_KEY"
+      CONTEXT_SIZE: "128000"
+      
+      # If you want to use other OpenAI compatible API, add the following below:
+      OPENAI_ENDPOINT: "http://localhost:11434/v1"
+      CUSTOM_MODEL: "llama3.1"
+    volumes:
+      - ${DOCKERDIR}/deep-research/:/app/
+    tty: true
+    stdin_open: true
+
 networks: # subnets are defined to avoid overlaps
   default:
     ipam:
@@ -112,7 +136,17 @@ networks: # subnets are defined to avoid overlaps
       config:
         - subnet: 10.201.3.0/24
 
+  llava:
+    ipam:
+      config:
+        - subnet: 10.201.3.0/24
+
   open-webui:
     ipam:
       config:
         - subnet: 10.201.4.0/24
+
+  deep-research:
+    ipam:
+      config:
+        - subnet: 10.201.5.0/24
