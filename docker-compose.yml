@@ -22,6 +22,8 @@ x-rocm: &rocm
     HIP_VISIBLE_DEVICES: 0
     # If you encounter CL_OUT_OF_RESOURCES errors:
     # GGML_ROCM_WORKSPACE:4096  # Increase memory allocation
+  group_add:
+    - video
 
 services:
   deepseek:
