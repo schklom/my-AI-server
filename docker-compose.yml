@@ -10,6 +10,13 @@ x-logging: &logging
 x-security: &security
   security_opt:
     - no-new-privileges:true
+# https://rocm.docs.amd.com/projects/install-on-linux/en/docs-6.2.0/how-to/docker.html#docker-compose
+x-rocm: &rocm
+  devices:
+    - /dev/kfd
+    - /dev/dri
+  security_opt:
+    - seccomp:unconfined
 
 services:
   deepseek:
@@ -47,6 +54,27 @@ services:
           memory: 40g
     networks:
       - llava
+llava:
+  image: rocm/mlc-llm:latest  # Official ROCm-optimized image
+  container_name: llava
+  command: --model /models/llava-34b-q8-mlc --device rocm  # Explicit ROCm backend
+  environment:
+    - HSA_OVERRIDE_GFX_VERSION=11.0.0  # For Radeon 8060S compatibility
+    - HIP_VISIBLE_DEVICES=0
+  volumes:
+    - ${DOCKERDIR}/llava-34b-q8-mlc:/models/llava-34b-q8-mlc
+    - /dev/kfd:/dev/kfd:rw
+    - /dev/dri:/dev/dri:rw
+  ports:
+    - "${LLAVA_PORT}:8001"
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: rocm
+            capabilities: [gpu]
+            count: 1
+        memory: 32g  # Optimal for 8-bit quant
 
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
