@@ -81,7 +81,27 @@ services:
     ports:
       - "${OPEN_WEBUI_PORT}:8080"
     environment:
-      - OLLAMA_API_BASE_URL=http://mlc-server:8000
+      OLLAMA_API_BASE_URL: "http://mlc-server:8000"
+      # https://github.com/open-webui/open-webui/discussions/12827
+      # https://github.com/open-webui/open-webui/pull/12828
+      PASS_HEADERS_TO_TOOL: True
+      #WEBUI_AUTH_TRUSTED_EMAIL_HEADER: X-User-Email  # Maps to user's email [7]
+      #WEBUI_AUTH_TRUSTED_NAME_HEADER: X-User-Name    # Optional display name [7]
+
+      # https://www.authelia.com/integration/openid-connect/open-webui/
+      WEBUI_URL: 'https://myopenwebui'
+      ENABLE_OAUTH_SIGNUP: 'false'
+      OAUTH_MERGE_ACCOUNTS_BY_EMAIL: 'true'
+      OAUTH_CLIENT_ID: 'open-webui'
+      OAUTH_CLIENT_SECRET: 'insecure_secret'
+      OPENID_PROVIDER_URL: 'https://myauthelia/.well-known/openid-configuration'
+      OAUTH_PROVIDER_NAME: 'Authelia'
+      OAUTH_SCOPES: 'openid email profile groups'
+      ENABLE_OAUTH_ROLE_MANAGEMENT: 'true'
+      OAUTH_ALLOWED_ROLES: 'openwebui-user,openwebui-admin'
+      OAUTH_ADMIN_ROLES: 'openwebui-admin'
+      OAUTH_ROLES_CLAIM: 'groups'
+    
     depends_on:
       - mlc-server
     networks:
