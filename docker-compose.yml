@@ -78,6 +78,12 @@ services:
     networks:
       - open-webui
 
+  # https://github.com/SYSTRAN/faster-whisper/issues/162
+  #   -> https://github.com/OpenNMT/CTranslate2/issues/1072
+  #     -> Dockerfile https://gist.github.com/muaiyadh/d99923375f5d35b5b08e8369705fa41a
+  #       -> with patch https://github.com/OpenNMT/CTranslate2/issues/1072#issuecomment-2686736426
+  # faster-whisper:
+
 networks: # subnets are defined to avoid overlaps
   default:
     ipam:
