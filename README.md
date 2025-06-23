@@ -1,5 +1,5 @@
 # Hardware
-[Framework Desktop](https://frame.work/desktop?slug=desktop-diy-amd-aimax300) with the new [AMD Ryzen 395 AI Max+](https://frame.work/products/framework-desktop-mainboard-amd-ryzen-ai-max-300-series?v=FRAFMK0006)
+[Framework Desktop](https://frame.work/desktop?slug=desktop-diy-amd-aimax300) with the new [AMD Ryzen 395 AI Max+](https://frame.work/products/framework-desktop-mainboard-amd-ryzen-ai-max-300-series?v=FRAFMK0006) (has GPU Radeon 8060S)
 
 # Software
 ## MLC-AI: make models in MLC format
