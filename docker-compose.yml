@@ -17,21 +17,25 @@ x-rocm: &rocm
     - /dev/dri
   security_opt:
     - seccomp:unconfined
-  environment:
-    # rocminfo | grep gfx1151 should return non-empty result if the workaround below is active
-    HSA_OVERRIDE_GFX_VERSION: 11.0.0 # forces RDNA 3.5 compatibility since the 8060S isn't officially supported.
-    HIP_VISIBLE_DEVICES: 0
-    # If you encounter CL_OUT_OF_RESOURCES errors:
-    # GGML_ROCM_WORKSPACE:4096  # Increase memory allocation
   group_add:
     - video
+x-rocm-env: &rocm-env
+  # rocminfo | grep gfx1151 should return non-empty result if the workaround below is active
+  HSA_OVERRIDE_GFX_VERSION: 11.0.0 # forces RDNA 3.5 compatibility since the 8060S isn't officially supported.
+  HIP_VISIBLE_DEVICES: 0
+  # If you encounter CL_OUT_OF_RESOURCES errors:
+  # GGML_ROCM_WORKSPACE:4096  # Increase memory allocation
 
 services:
   deepseek:
     image: mymlcimage
+    build:
+      context: "MLC-LLM for ROCm Radeon 8060S"
     container_name: deepseek
     command: --model /models/deepseek-70b-q8-mlc --device vulkan
     <<: [ *restart_failure, *logging, *security, *rocm ]
+    environment:
+      <<: *rocm-env
     volumes:
       - ${DOCKERDIR}/deepseek-70b-q8-mlc:/models/deepseek-70b-q8-mlc
     ports:
@@ -49,9 +53,13 @@ services:
 
   llava:
     image: mymlcimage
+    build:
+      context: "MLC-LLM for ROCm Radeon 8060S"
     container_name: llava
     command: --model /models/llava-34b-q8-mlc --device rocm
     <<: [ *restart_failure, *logging, *security, *rocm ]
+    environment:
+      <<: *rocm-env
     volumes:
       - ${DOCKERDIR}/llava-34b-q8-mlc:/models/llava-34b-q8-mlc
     ports:
@@ -84,6 +92,8 @@ services:
   #     -> Dockerfile https://gist.github.com/muaiyadh/d99923375f5d35b5b08e8369705fa41a
   #       -> with patch https://github.com/OpenNMT/CTranslate2/issues/1072#issuecomment-2686736426
   # faster-whisper:
+
+  # https://github.com/mendableai/firecrawl/
 
 networks: # subnets are defined to avoid overlaps
   default:
