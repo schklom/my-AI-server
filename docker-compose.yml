@@ -1,0 +1,83 @@
+x-restart: &restart
+  restart: "unless-stopped"
+x-restart-failure: &restart_failure
+  restart: "on-failure: 5"
+x-logging: &logging
+  logging:
+    driver: local
+    options:
+      max-size: ${DOCKERLOGGING_MAXSIZE}
+x-security: &security
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  deepseek:
+    image: mlc-ai/mlc-llm:latest-amd
+    container_name: deepseek
+    command: --model /models/deepseek-70b-q8-mlc --device vulkan
+    volumes:
+      - ${DOCKERDIR}/deepseek-70b-q8-mlc:/models/deepseek-70b-q8-mlc
+    ports:
+      - "${DEEPSEEK_PORT}:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: rocm
+              count: 1
+          memory: 75g
+    networks:
+      - deepseek
+
+  llava:
+    image: mlc-ai/mlc-llm:latest-amd
+    container_name: llava
+    command: --model /models/llava-34b-q8-mlc --device vulkan
+    volumes:
+      - ${DOCKERDIR}/llava-34b-q8-mlc:/models/llava-34b-q8-mlc
+    ports:
+      - "${LLAVA_PORT}:8001"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: rocm
+              count: 1
+          memory: 40g
+    networks:
+      - llava
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    ports:
+      - "${OPEN_WEBUI_PORT}:8080"
+    environment:
+      - OLLAMA_API_BASE_URL=http://mlc-server:8000
+    depends_on:
+      - mlc-server
+    networks:
+      - open-webui
+
+networks: # subnets are defined to avoid overlaps
+  default:
+    ipam:
+      config:
+        - subnet: 10.201.1.0/24
+          gateway: 10.201.1.1
+
+  deepseek:
+    ipam:
+      config:
+        - subnet: 10.201.2.0/24
+
+  llava:
+    ipam:
+      config:
+        - subnet: 10.201.3.0/24
+
+  open-webui:
+    ipam:
+      config:
+        - subnet: 10.201.4.0/24
