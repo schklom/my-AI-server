@@ -69,6 +69,7 @@ services:
         reservations:
           devices:
             - driver: rocm
+              capabilities: [gpu]
               count: 1
           memory: 32g
     networks:
@@ -144,6 +145,11 @@ services:
       - ${DOCKERDIR}/deep-research/:/app/
     tty: true
     stdin_open: true
+
+  # https://github.com/cognitivecomputations/dolphin-mcp
+  dolphinmcpclient:
+    image: mydolphinmcpclient
+    
 
 networks: # subnets are defined to avoid overlaps
   default:
