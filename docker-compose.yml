@@ -37,9 +37,9 @@ services:
     environment:
       <<: *rocm-env
     volumes:
-      - ${DOCKERDIR}/deepseek-70b-q8-mlc:/models/deepseek-70b-q8-mlc
-    ports:
-      - "${DEEPSEEK_PORT}:8000"
+      - ${DOCKERDIR}/mlc-models/deepseek-70b-q8-mlc:/models/deepseek-70b-q8-mlc
+    # ports:
+      # - "${DEEPSEEK_PORT}:8000"
     deploy:
       resources:
         reservations:
@@ -61,9 +61,9 @@ services:
     environment:
       <<: *rocm-env
     volumes:
-      - ${DOCKERDIR}/llava-34b-q8-mlc:/models/llava-34b-q8-mlc
-    ports:
-      - "${LLAVA_PORT}:8001"
+      - ${DOCKERDIR}/mlc-models/llava-34b-q8-mlc:/models/llava-34b-q8-mlc
+    # ports:
+      # - "${LLAVA_PORT}:8001"
     deploy:
       resources:
         reservations:
@@ -76,10 +76,57 @@ services:
       - llava
 
   litellm:
-    image: mylitellm
-    build:
-      context: https://github.com/BerriAI/litellm.git#main:docker
-      dockerfile: Dockerfile.dev
+    image: ghcr.io/berriai/litellm-non_root:main-stable
+    # build:
+      # context: https://github.com/BerriAI/litellm.git#main:docker
+      # dockerfile: Dockerfile.dev
+    container_name: litellm
+    <<: [ *restart_failure, *logging, *security ]
+    #########################################
+    ## Uncomment these lines to start proxy with a config.yaml file ##
+    # volumes:
+    #  - ${DOCKERDIR}/litellm/app/config.yaml:/app/config.yaml <<- this is missing in the docker-compose file currently
+    # command:
+    #  - "--config=/app/config.yaml"
+    ##############################################
+    ports:
+      - "${LITELLM_PORT}:4000"
+    environment:
+      DATABASE_URL: "postgresql://llmproxy:${LITELLM_DB_PASSWORD}@litellm-db:5432/litellm"
+      STORE_MODEL_IN_DB: "True" # allows adding models to proxy via UI
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 http://localhost:4000/health/liveliness || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - litellm-db
+    networks:
+      - deepseek
+      - llava
+      - litellm
+      - litellm-db
+
+  litellm-db:
+    image: postgres:16
+    container_name: litellm-db
+    <<: [ *restart_failure, *logging, *security, *rocm ]
+    environment:
+      POSTGRES_DB: litellm
+      POSTGRES_USER: llmproxy
+      POSTGRES_PASSWORD: ${LITELLM_DB_PASSWORD}
+    # ports:
+      # - "5432:5432"
+    volumes:
+      - ${DOCKERDIR}/litellm/db:/var/lib/postgresql/data # Persists Postgres data across container restarts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d litellm -U llmproxy"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+    networks:
+      - litellm-db
 
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
@@ -88,7 +135,7 @@ services:
     ports:
       - "${OPEN_WEBUI_PORT}:8080"
     environment:
-      OLLAMA_API_BASE_URL: "http://mlc:8000"
+      OLLAMA_API_BASE_URL: "http://litellm:4000"
       # https://github.com/open-webui/open-webui/discussions/12827
       # https://github.com/open-webui/open-webui/pull/12828
       PASS_HEADERS_TO_TOOL: True
@@ -108,11 +155,10 @@ services:
       OAUTH_ALLOWED_ROLES: 'openwebui-user,openwebui-admin'
       OAUTH_ADMIN_ROLES: 'openwebui-admin'
       OAUTH_ROLES_CLAIM: 'groups'
-    
     depends_on:
-      - mlc-server
+      - litellm
     networks:
-      - open-webui
+      - litellm
 
   # https://github.com/SYSTRAN/faster-whisper/issues/162
   #   -> https://github.com/OpenNMT/CTranslate2/issues/1072
@@ -139,12 +185,15 @@ services:
       CONTEXT_SIZE: "128000"
       
       # If you want to use other OpenAI compatible API, add the following below:
-      OPENAI_ENDPOINT: "http://mlc:11434/v1"
-      CUSTOM_MODEL: "llama3.1"
+      OPENAI_ENDPOINT: "http://litellm:4000/v1"
+      CUSTOM_MODEL: "deepseek-70b-q8-mlc"
     volumes:
       - ${DOCKERDIR}/deep-research/:/app/
     tty: true
     stdin_open: true
+    networks:
+      - deep-research
+      - firecrawl
 
   # https://github.com/cognitivecomputations/dolphin-mcp
   dolphinmcpclient:
@@ -159,16 +208,13 @@ networks: # subnets are defined to avoid overlaps
           gateway: 10.201.1.1
 
   deepseek:
+    internal: true
     ipam:
       config:
         - subnet: 10.201.2.0/24
 
   llava:
-    ipam:
-      config:
-        - subnet: 10.201.3.0/24
-
-  llava:
+    internal: true
     ipam:
       config:
         - subnet: 10.201.3.0/24
@@ -182,3 +228,20 @@ networks: # subnets are defined to avoid overlaps
     ipam:
       config:
         - subnet: 10.201.5.0/24
+
+  litellm:
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.201.6.0/24
+
+  litellm-db:
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.201.7.0/24
+
+  firecrawl:
+    ipam:
+      config:
+        - subnet: 10.201.8.0/24
