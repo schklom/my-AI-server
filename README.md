@@ -27,5 +27,9 @@ docker run --rm -v ~/docker/LLMs:/models mlc-ai/mlc-llm:latest \
   --image-model vit-large-patch14-336 \
   --output /models/llava-34b-q8-mlc
 ```
+
+## List of MCP servers
+https://github.com/modelcontextprotocol/servers
+
 ## Docker
 [docker-compose.yml](docker-compose.yml)
