@@ -81,19 +81,16 @@ services:
       # context: https://github.com/BerriAI/litellm.git#main:docker
       # dockerfile: Dockerfile.dev
     container_name: litellm
+    command:
+      - "--config=/app/config.yaml"
     <<: [ *restart_failure, *logging, *security ]
-    #########################################
-    ## Uncomment these lines to start proxy with a config.yaml file ##
-    # volumes:
-    #  - ${DOCKERDIR}/litellm/app/config.yaml:/app/config.yaml <<- this is missing in the docker-compose file currently
-    # command:
-    #  - "--config=/app/config.yaml"
-    ##############################################
-    ports:
-      - "${LITELLM_PORT}:4000"
     environment:
       DATABASE_URL: "postgresql://llmproxy:${LITELLM_DB_PASSWORD}@litellm-db:5432/litellm"
       STORE_MODEL_IN_DB: "True" # allows adding models to proxy via UI
+    volumes:
+      - ${DOCKERDIR}/litellm/app/config.yaml:/app/config.yaml
+    ports:
+      - "${LITELLM_PORT}:4000"
     healthcheck:
       test: [ "CMD-SHELL", "wget --no-verbose --tries=1 http://localhost:4000/health/liveliness || exit 1" ]
       interval: 30s
