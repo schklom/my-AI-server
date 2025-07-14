@@ -38,6 +38,7 @@ docker run --rm -v ~/docker/LLMs:/models mlc-ai/mlc-llm:latest \
 ```
 
 ## vLLM
+https://docs.vllm.ai/en/latest/deployment/docker.html
 
 ## List of MCP servers
 https://github.com/modelcontextprotocol/servers
