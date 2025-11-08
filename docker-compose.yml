@@ -33,9 +33,6 @@ services:
     image: ollama/ollama:rocm
     container_name: ollama
     <<: [ *restart_failure, *logging, *security, *rocm ]
-    devices:
-      - /dev/kfd
-      - /dev/dri
     volumes:
       - ${CONTAINERDIR}/ollama:/root/.ollama
     ports:
