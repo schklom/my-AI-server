@@ -36,7 +36,7 @@ services:
     volumes:
       - ${CONTAINERDIR}/ollama:/root/.ollama
     ports:
-      - 11434:11434
+      - ${OLLAMA_PORT}:11434
     networks:
       - deepseek
 
@@ -139,12 +139,12 @@ services:
     networks:
       - litellm-db
 
-  open-webui:
+  openwebui:
     image: ghcr.io/open-webui/open-webui:main
-    container_name: open-webui
+    container_name: openwebui
     <<: [ *restart_failure, *logging, *security ]
     ports:
-      - "${OPEN_WEBUI_PORT}:8080"
+      - "${OPENWEBUI_PORT}:8080"
     environment:
       OLLAMA_API_BASE_URL: "http://litellm:4000"
       # https://github.com/open-webui/open-webui/discussions/12827
@@ -170,6 +170,7 @@ services:
       - litellm
     networks:
       - litellm
+      - ollama
 
   # https://github.com/SYSTRAN/faster-whisper/issues/162
   #   -> https://github.com/OpenNMT/CTranslate2/issues/1072
