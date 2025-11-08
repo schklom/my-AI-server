@@ -27,6 +27,23 @@ x-rocm-env: &rocm-env
   # GGML_ROCM_WORKSPACE:4096  # Increase memory allocation
 
 services:
+
+  # https://github.com/ollama/ollama/blob/main/docs/docker.mdx#amd-gpu
+  ollama:
+    image: ollama/ollama:rocm
+    container_name: ollama
+    <<: [ *restart_failure, *logging, *security, *rocm ]
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    volumes:
+      - ${CONTAINERDIR}/ollama:/root/.ollama
+    ports:
+      - 11434:11434
+    networks:
+      - deepseek
+
+  
   deepseek:
     image: mymlcimage
     build:
@@ -37,7 +54,7 @@ services:
     environment:
       <<: *rocm-env
     volumes:
-      - ${DOCKERDIR}/mlc-models/deepseek-70b-q8-mlc:/models/deepseek-70b-q8-mlc
+      - ${CONTAINERDIR}/mlc-models/deepseek-70b-q8-mlc:/models/deepseek-70b-q8-mlc
     # ports:
       # - "${DEEPSEEK_PORT}:8000"
     deploy:
@@ -61,7 +78,7 @@ services:
     environment:
       <<: *rocm-env
     volumes:
-      - ${DOCKERDIR}/mlc-models/llava-34b-q8-mlc:/models/llava-34b-q8-mlc
+      - ${CONTAINERDIR}/mlc-models/llava-34b-q8-mlc:/models/llava-34b-q8-mlc
     # ports:
       # - "${LLAVA_PORT}:8001"
     deploy:
@@ -88,7 +105,7 @@ services:
       DATABASE_URL: "postgresql://llmproxy:${LITELLM_DB_PASSWORD}@litellm-db:5432/litellm"
       STORE_MODEL_IN_DB: "True" # allows adding models to proxy via UI
     volumes:
-      - ${DOCKERDIR}/litellm/app/config.yaml:/app/config.yaml
+      - ${CONTAINERDIR}/litellm/app/config.yaml:/app/config.yaml
     ports:
       - "${LITELLM_PORT}:4000"
     healthcheck:
@@ -116,7 +133,7 @@ services:
     # ports:
       # - "5432:5432"
     volumes:
-      - ${DOCKERDIR}/litellm/db:/var/lib/postgresql/data # Persists Postgres data across container restarts
+      - ${CONTAINERDIR}/litellm/db:/var/lib/postgresql/data # Persists Postgres data across container restarts
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -d litellm -U llmproxy"]
       interval: 1s
@@ -185,7 +202,7 @@ services:
       OPENAI_ENDPOINT: "http://litellm:4000/v1"
       CUSTOM_MODEL: "deepseek-70b-q8-mlc"
     volumes:
-      - ${DOCKERDIR}/deep-research/:/app/
+      - ${CONTAINERDIR}/deep-research/:/app/
     tty: true
     stdin_open: true
     networks:
@@ -204,41 +221,46 @@ networks: # subnets are defined to avoid overlaps
         - subnet: 10.201.1.0/24
           gateway: 10.201.1.1
 
-  deepseek:
-    internal: true
+  ollama:
     ipam:
       config:
         - subnet: 10.201.2.0/24
 
-  llava:
+  deepseek:
     internal: true
     ipam:
       config:
         - subnet: 10.201.3.0/24
 
-  open-webui:
+  llava:
+    internal: true
     ipam:
       config:
         - subnet: 10.201.4.0/24
 
-  deep-research:
+  open-webui:
     ipam:
       config:
         - subnet: 10.201.5.0/24
+
+  deep-research:
+    ipam:
+      config:
+        - subnet: 10.201.6.0/24
 
   litellm:
     internal: true
     ipam:
       config:
-        - subnet: 10.201.6.0/24
+        - subnet: 10.201.7.0/24
 
   litellm-db:
     internal: true
     ipam:
       config:
-        - subnet: 10.201.7.0/24
+        - subnet: 10.201.8.0/24
 
   firecrawl:
     ipam:
       config:
-        - subnet: 10.201.8.0/24
+        - subnet: 10.201.9.0/24
