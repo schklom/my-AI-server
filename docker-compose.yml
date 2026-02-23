@@ -104,6 +104,7 @@ services:
   # Speech-to-text
   # Options listed on: https://github.com/SYSTRAN/faster-whisper#community-integrations
   # https://github.com/speaches-ai/speaches -> https://github.com/speaches-ai/speaches/issues/22 DOES NOT SUPPORT ROCM
+  # https://github.com/jjajjara/rocm-whisper-api
   rocm-whisper-api-service:
     image: jjajjara/rocm-whisper-api:latest # Ensure this matches your pushed Docker Hub image tag (e.g., your_username/rocm-whisper-api:latest)
     container_name: rocm-whisper-api
