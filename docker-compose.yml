@@ -28,116 +28,24 @@ x-rocm-env: &rocm-env
 
 services:
 
-  # https://github.com/ollama/ollama/blob/main/docs/docker.mdx#amd-gpu
-  ollama:
-    image: ollama/ollama:rocm
-    container_name: ollama
-    <<: [ *restart_failure, *logging, *security, *rocm ]
+  # https://docs.vllm.ai/en/stable/getting_started/installation/gpu/#pre-built-images
+  vllm:
+    image: rocm/vllm-dev:nightly
+    network_mode: host
+    group_add:
+      - video
+    shm_size: 121GB
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    devices:
+      - /dev/kfd
+      - /dev/dri
     volumes:
-      - ${CONTAINERDIR}/ollama:/root/.ollama
-    ports:
-      - ${OLLAMA_PORT}:11434
-    networks:
-      - deepseek
-
-  
-  deepseek:
-    image: mymlcimage
-    build:
-      context: "MLC-LLM for ROCm Radeon 8060S"
-    container_name: deepseek
-    command: --model /models/deepseek-70b-q8-mlc --device vulkan
-    <<: [ *restart_failure, *logging, *security, *rocm ]
+      - <path/to/your/models>:/app/models
     environment:
-      <<: *rocm-env
-    volumes:
-      - ${CONTAINERDIR}/mlc-models/deepseek-70b-q8-mlc:/models/deepseek-70b-q8-mlc
-    # ports:
-      # - "${DEEPSEEK_PORT}:8000"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: rocm
-              capabilities: [gpu]
-              count: 1
-          memory: 75g
-    networks:
-      - deepseek
-
-  llava:
-    image: mymlcimage
-    build:
-      context: "MLC-LLM for ROCm Radeon 8060S"
-    container_name: llava
-    command: --model /models/llava-34b-q8-mlc --device rocm
-    <<: [ *restart_failure, *logging, *security, *rocm ]
-    environment:
-      <<: *rocm-env
-    volumes:
-      - ${CONTAINERDIR}/mlc-models/llava-34b-q8-mlc:/models/llava-34b-q8-mlc
-    # ports:
-      # - "${LLAVA_PORT}:8001"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: rocm
-              capabilities: [gpu]
-              count: 1
-          memory: 32g
-    networks:
-      - llava
-
-  litellm:
-    image: ghcr.io/berriai/litellm-non_root:main-stable
-    # build:
-      # context: https://github.com/BerriAI/litellm.git#main:docker
-      # dockerfile: Dockerfile.dev
-    container_name: litellm
-    command:
-      - "--config=/app/config.yaml"
-    <<: [ *restart_failure, *logging, *security ]
-    environment:
-      DATABASE_URL: "postgresql://llmproxy:${LITELLM_DB_PASSWORD}@litellm-db:5432/litellm"
-      STORE_MODEL_IN_DB: "True" # allows adding models to proxy via UI
-    volumes:
-      - ${CONTAINERDIR}/litellm/app/config.yaml:/app/config.yaml
-    ports:
-      - "${LITELLM_PORT}:4000"
-    healthcheck:
-      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 http://localhost:4000/health/liveliness || exit 1" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    depends_on:
-      - litellm-db
-    networks:
-      - deepseek
-      - llava
-      - litellm
-      - litellm-db
-
-  litellm-db:
-    image: postgres:16
-    container_name: litellm-db
-    <<: [ *restart_failure, *logging, *security, *rocm ]
-    environment:
-      POSTGRES_DB: litellm
-      POSTGRES_USER: llmproxy
-      POSTGRES_PASSWORD: ${LITELLM_DB_PASSWORD}
-    # ports:
-      # - "5432:5432"
-    volumes:
-      - ${CONTAINERDIR}/litellm/db:/var/lib/postgresql/data # Persists Postgres data across container restarts
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d litellm -U llmproxy"]
-      interval: 1s
-      timeout: 5s
-      retries: 10
-    networks:
-      - litellm-db
+      - HF_HOME=/app/models
 
   openwebui:
     image: ghcr.io/open-webui/open-webui:main
@@ -181,35 +89,40 @@ services:
   # https://github.com/mendableai/firecrawl/
 
   # https://github.com/dzhng/deep-research
-  deep-research:
-    image: mydeepresearch
-    build:
-      context: https://github.com/dzhng/deep-research#main
-    container_name: deep-research
+
+  # https://github.com/open-webui/mcpo
+  mcpo:
+    image: ghcr.io/open-webui/mcpo:main
+    container_name: mcpo
+    <<: [ *restart_failure, *logging, *security ]
+    command: --api-key "top-secret" -- your_mcp_server_command
+    ports:
+      - 8000:8000
+    networks:
+      - mcpo
+
+  # Speech-to-text
+  # Options listed on: https://github.com/SYSTRAN/faster-whisper#community-integrations
+  # https://github.com/speaches-ai/speaches -> https://github.com/speaches-ai/speaches/issues/22 DOES NOT SUPPORT ROCM
+  rocm-whisper-api-service:
+    image: jjajjara/rocm-whisper-api:latest # Ensure this matches your pushed Docker Hub image tag (e.g., your_username/rocm-whisper-api:latest)
+    container_name: rocm-whisper-api
     <<: [ *restart_failure, *logging, *security ]
     environment:
-      # FIRECRAWL_KEY: "YOUR_KEY"
-      # If you want to use your self-hosted Firecrawl, add the following below:
-      FIRECRAWL_BASE_URL: "http://firecrawl:3002"
-      FIRECRAWL_CONCURRENCY: "2"
-      
-      # OPENAI_KEY: "YOUR_KEY"
-      CONTEXT_SIZE: "128000"
-      
-      # If you want to use other OpenAI compatible API, add the following below:
-      OPENAI_ENDPOINT: "http://litellm:4000/v1"
-      CUSTOM_MODEL: "deepseek-70b-q8-mlc"
-    volumes:
-      - ${CONTAINERDIR}/deep-research/:/app/
-    tty: true
-    stdin_open: true
+      - HSA_OVERRIDE_GFX_VERSION=11.0.0 # <<< IMPORTANT: Adjust this based on your specific AMD GPU model if needed
+      - WHISPER_MODEL=base             # Change to 'small', 'medium', 'large', etc., as required
+    devices:
+      - "/dev/kfd:/dev/kfd" # Essential for ROCm Kernel Fusion Device access
+      - "/dev/dri:/dev/dri" # Essential for Direct Rendering Infrastructure access for GPU
+    # (Optional) Volume setup for model caching.
+    # Uncomment the following lines to persist downloaded Whisper models on your host PC
+    # to prevent re-downloading on container restarts and save bandwidth/time.
+    # volumes:
+    #   - ~/.cache/whisper:/root/.cache/whisper
+    ports:
+      - "8080:8080" # Maps container port 8080 on the host to container port 8080
     networks:
-      - deep-research
-      - firecrawl
-
-  # https://github.com/cognitivecomputations/dolphin-mcp
-  dolphinmcpclient:
-    image: mydolphinmcpclient
+      - whisper
     
 
 networks: # subnets are defined to avoid overlaps
@@ -219,40 +132,22 @@ networks: # subnets are defined to avoid overlaps
         - subnet: 10.201.1.0/24
           gateway: 10.201.1.1
 
-  ollama:
+  vllm:
     ipam:
       config:
         - subnet: 10.201.2.0/24
 
-  deepseek:
-    internal: true
+  vllm:
     ipam:
       config:
-        - subnet: 10.201.3.0/24
-
-  llava:
-    internal: true
-    ipam:
-      config:
-        - subnet: 10.201.4.0/24
+        - subnet: 10.201.2.0/24
 
   open-webui:
     ipam:
       config:
         - subnet: 10.201.5.0/24
 
-  deep-research:
-    ipam:
-      config:
-        - subnet: 10.201.6.0/24
-
-  litellm:
-    internal: true
-    ipam:
-      config:
-        - subnet: 10.201.7.0/24
-
-  litellm-db:
+  mcpo:
     internal: true
     ipam:
       config:
